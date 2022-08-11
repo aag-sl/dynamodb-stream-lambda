@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-dynamodb-lambda-setup
+
+  Sample SAM Template for integrating DynamoDB Stream to AWS Lambda
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 20
+    Runtime: python3.8
+
+Resources:
+
+  # =========================== Dynamodb ===========================
+  MonkeyTreeTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "monkeys-and-trees"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: "PK"
+          AttributeType: "S"
+        - AttributeName: "SK"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "PK"
+          KeyType: "HASH"
+        - AttributeName: "SK"
+          KeyType: "RANGE"
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+
+  WhenMonkeysFallHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/
+      Handler: monkeys_fall.lambda_handler
+      Events:
+        MonkeyEvent:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt MonkeyTreeTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 1
+            Enabled: true
+
+
+Outputs:
+  MonkeyTreeTableStreamArn:
+    Description: "Table Stream ARN"
+    Value: !GetAtt MonkeyTreeTable.StreamArn
+
